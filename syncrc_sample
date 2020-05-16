@@ -1,0 +1,32 @@
+# Sample configuration file for sync.pl
+
+# The file may contain blank lines and comments (prefixed by '#') which are
+# ignored. Continutation lines may be marked by ending the line with a '\'.
+
+# Supported expansions:
+# ~ .. home directory
+# ~uid .. home directory of user <uid>
+# $var or $(var) .. expand variable <var>
+# ${var} .. expand environment variable <var>
+
+# Enable verbose mode
+verbose = 1
+
+# Source path (local path in Unix convention)
+#source = /my/path/to/a/source/directory
+
+# destination path (local or remote SSH path)
+# If this is remote path, then you should ssh-copy-id your public key to the remote host
+# and use ssh-agent so you don't have to enter a password.
+destination =  my_user@my_remote_host:/my/path/to/remote/destination/directory
+
+# Read exclude patterns from file (rsync convention)
+# Not allowed to be used togehter with <gitignore>
+#exclude-from = $src/.exclude-from
+
+# Read include patterns from file (rsync convention)
+# Not allowed to be used togehter with <gitignore>
+#include-from = $src/.include-from
+
+# Read exclude and include patterns from file (.gitignore convetion)
+gitignore = $src/.gitignore
