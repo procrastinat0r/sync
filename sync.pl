@@ -4,7 +4,11 @@
 # - ssh (1)
 # - rsync (1)
 # - https://metacpan.org/pod/File::ChangeNotify
-# It follows an idea from https://rakhim.org/2018/10/fast-automatic-remote-file-sync/
+# - https://metacpan.org/pod/AppConfig
+#
+# We used some ideas from
+# - https://rakhim.org/2018/10/fast-automatic-remote-file-sync/ (for the common concept)
+# - https://stackoverflow.com/questions/16654751/rsync-through-ssh-tunnel (for the proxy support)
 
 use strict;
 use warnings;
@@ -81,6 +85,7 @@ my $dst = '';
 my $exclude_from = '';
 my $include_from = '';
 my $gitignore = '';
+my $proxy = '';
 
 sub check_config_file
 {
@@ -96,14 +101,17 @@ sub check_config_file
     $cfg->define('exclude-from=s');
     $cfg->define('include-from=s');
     $cfg->define('gitignore=s');
+    $cfg->define('ssh-proxy=s');
     error("Can not read config file <$cfg_file>\n") unless $cfg->file($cfg_file);
     $verbose = defined $cfg->verbose ? $cfg->verbose : 0;
     info("Check config file ...\n");
+
     $src = get_check_path('source path', $cfg->source, 1, 1, 0);
     $src =~ s/\/$//; # remove trailing /
     $dst = get_check_path('destination path', $cfg->destination, 0, 0, 0);
     $dst =~ s/\/$//; # remove trailing /
     error("Destination path is empty") unless $dst;
+
     $exclude_from = get_check_path('exclude-from file', $cfg->get('exclude-from'), 0, 1, 1);
     $include_from = get_check_path('include-from file', $cfg->get('include-from'), 0, 1, 1);
     $gitignore = get_check_path('gitignore file', $cfg->gitignore, 0, 1, 1);
@@ -111,6 +119,10 @@ sub check_config_file
     $exclude_from = "--exclude-from=$exclude_from" if $exclude_from;
     $include_from = "--include-from=$include_from" if $include_from;
     $gitignore = "--exclude-from=$gitignore" if $gitignore; # TODO add correct handling instead of using it as exclude-from
+
+    $proxy = $cfg->get('ssh-proxy');
+    info("Use proxy: <$proxy>") if defined $proxy;
+    $proxy = defined $proxy ? "-e 'ssh -A $proxy ssh'" : '';
 }
 
 
@@ -118,7 +130,7 @@ sub check_config_file
 sub initial_full_sync
 {
     info "Syncing <$src> to <$dst> ...\n";
-    my $cmd = "rsync -avPz --delete $exclude_from $include_from $gitignore $src $dst";
+    my $cmd = "rsync -avPz $proxy --delete $exclude_from $include_from $gitignore $src $dst";
     #info "$cmd\n";
     my $rsp = `$cmd`;
     info "Initial sync done\n";
@@ -160,7 +172,7 @@ sub sync_on_changes
             }
             $to = "$dst/$fn_r";
             #info "$from -> $to\n";
-            my $cmd = "rsync -avPz --delete $exclude_from $include_from $gitignore $from $to";
+            my $cmd = "rsync -avPz $proxy --delete $exclude_from $include_from $gitignore $from $to";
             #info "$cmd\n";
             my $rsp = `$cmd`;
             #info "$rsp\n";

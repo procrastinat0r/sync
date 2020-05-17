@@ -30,3 +30,8 @@ destination =  my_user@my_remote_host:/my/path/to/remote/destination/directory
 
 # Read exclude and include patterns from file (.gitignore convetion)
 gitignore = $src/.gitignore
+
+# Use SSH proxy to connect destination server
+# Again, you should ssh-copy-id your public key to remote and proxy hosts
+# and use ssh-agent so you don't have to enter a password.
+ssh-proxy = some_user@proxy_host

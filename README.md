@@ -17,6 +17,7 @@ directory is tried and if this does not exists ~/.syncrc
 
 If the destination path in the config file is a remote path, then you should
 ssh-copy-id (1) your public key to the remote host and also run ssh-agent (1) to
-avoid entering the password for your private SSH key.
+avoid entering the password for your private SSH key. The same applies if you
+configure to use a SSH proxy.
 
 Sync.pl was tested on FreeBSD and Windows 7 (Cygwin).
