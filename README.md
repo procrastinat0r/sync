@@ -7,7 +7,10 @@ This little Perl script can be used to synchronize files and/or directories usin
 You need the following Perl modules installed:
 - https://metacpan.org/pod/File::ChangeNotify
 - https://metacpan.org/pod/File::Basename
+- https://metacpan.org/pod/File::Temp
 - https://metacpan.org/pod/AppConfig
+- https://metacpan.org/pod/Sereal::Encoder
+- https://metacpan.org/pod/Sereal::Decoder
 
 Usage: perl sync.pl [-v[erbose]] [-c[onfig] <config-file>]
 
@@ -15,9 +18,8 @@ Sync.pl is configured via a config file (see syncrc_sample for an example). If
 no config file is specified via command line, then .syncrc in the current
 directory is tried and if this does not exists ~/.syncrc
 
-If the destination path in the config file is a remote path, then you should
-ssh-copy-id (1) your public key to the remote host and also run ssh-agent (1) to
-avoid entering the password for your private SSH key. The same applies if you
-configure to use a SSH proxy.
+If SSH paths are used for source base path, destination path or SSH proxy, then
+you should ssh-copy-id (1) your public key to the remote host and use ssh-agent
+(1) so you don't have to enter a password for your private SSH keys.
 
 Sync.pl was tested on FreeBSD and Windows 7 (Cygwin).
