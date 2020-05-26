@@ -128,7 +128,7 @@ sub check_config_file
     if (defined $cfg->gitignore)
     {
         $gitignore = $cfg->gitignore;
-        $gitignore =~ s/^local:// if $src_type eq 'local';
+        $gitignore =~ s/^local://;
     }
     $gitignore = get_check_path('gitignore file', $gitignore, 0, 1, 1) if $dst_type ne 'batch';
     error "gitignore not allowed with exclude-from and/or include-from" if $gitignore && ($exclude_from || $include_from);
@@ -214,7 +214,7 @@ sub initial_full_sync
     {
         info "Initiate full syncing of <$src_base> to <$dst> ...\n";
         my $cmd = "rsync -avPz $proxy --delete $exclude_from $include_from $gitignore $src_base $dst";
-        #info "$cmd\n";
+        info "$cmd\n";
         my $rsp = `$cmd`;
         info "Initial sync done\n";
     }
@@ -222,7 +222,7 @@ sub initial_full_sync
     { # do initial sync via rsync
         info "Syncing <$src> to <$dst> ...\n";
         my $cmd = "rsync -avPz $proxy --delete $exclude_from $include_from $gitignore $src $dst";
-        #info "$cmd\n";
+        info "$cmd\n";
         my $rsp = `$cmd`;
         info "Initial sync done\n";
     }
