@@ -20,7 +20,7 @@ use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.0';
+my $version = '1.0.1';
 my $verbose = 0;
 my $cfg_file = '';
 
@@ -246,7 +246,7 @@ sub sync_on_changes
         # write them to a tempory file used for "rsync --files-from" then
         # see also https://stackoverflow.com/questions/16647476/how-to-rsync-only-a-specific-list-of-files
         # create from filter file
-        my $from_file = File::Temp->new(TEMPLATE => 'sync_from_XXXXXXXX', DIR => "/tmp", UNLINK => 0);
+        my $from_file = File::Temp->new(TEMPLATE => 'sync_from_XXXXXXXX', DIR => "/tmp", UNLINK => 1);
         my $from_fn = $filter_file->filename;
         foreach my $fn_r (sort keys %src_files)
         {
