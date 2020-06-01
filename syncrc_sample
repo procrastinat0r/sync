@@ -16,34 +16,31 @@
 # Enable verbose mode
 verbose = 1
 
-# Source path (local or batch spec)
-#   local spec: local:<local_unix_path>
-#   batch spec: batch:<local_unix_path>:<ssh_source_base_path>
-# Please note, that we will not have an initial full sync if a batch spec is
-# used!
-source = local:/my/path/to/a/source/directory
-#source = batch:/my/path/to/a/batch/directory:my_user@my_remote_host:/my/path/to/remote/source/directory
+# Source path (local unix path) - mandatory
+source = /my/path/to/a/source/directory
 
-# destination path (local, remote or batch spec)
-# local spec: local:<local_unix_path>
-# remote spec: remote:<ssh_path>
-# batch spec: batch:<local_unix_path>
-#destination = local:/my/path/to/a/destination/directory
-destination = remote:my_user@my_remote_host:/my/path/to/remote/destination/directory
-#destination = batch:/my/path/to/a/batch/directory
+# Destination path (local or remote (SSH) path) - mandatory
+#destination = [user@[host:[port]]]/my/path/to/a/destination/directory
+destination = my_user@host:2020/my/path/to/remote/destination/directory
 
-# Read exclude patterns from file (rsync convention)
-# Not allowed to be used together with <gitignore>
-#exclude-from = $(source)/gina/.exclude-from
-
-# Read include patterns from file (rsync convention)
-# Not allowed to be used together with <gitignore>
-#include-from = $(source)/gina/.include-from
-
-# Read exclude and include patterns from file (.gitignore convention)
-# Ignored if used together with batch destination
-gitignore = $(source)/.gitignore
+# Initial sync can be done from source or from destination
+# initial_sync = from_source | from_destination
+initial_sync = from_destination
 
 # Use SSH proxy to connect remote destinations (ignored if destination is
-# not a remote spec)
-ssh-proxy = some_user@proxy_host
+# not a remote spec) - optional
+ssh_proxy = some_user@proxy_host
+
+# Ordered list of filter patterns following the rsync (1) FILTER RULES
+# If nothing is specified then all files and directories are
+# synchronized.
+# Common rule format is:
+# filter <rule_prefix><modifier> <pattern-or-filename>
+
+# The following will exclude any files in directories with name "build" except
+# they are in directory "t/build" and also all ".gitignore" files and all files
+# with extension ".pyc"
+filter - .gitignore
+filter - *.pyc
+filter + t/build/*
+filter - build/*
