@@ -20,7 +20,7 @@ use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.0.1';
+my $version = '1.0.2';
 my $verbose = 0;
 my $cfg_file = '';
 
@@ -105,7 +105,7 @@ sub check_config_file
     $cfg->define('destination=s');
     $cfg->define('ssh_proxy=s');
     $cfg->define('initial_sync=s');
-    $cfg->define('filter=s@');
+    $cfg->define('rsync_filter|filter=s@');
 
     error("Can not read config file <$cfg_file>\n") unless $cfg->file($cfg_file);
     $verbose = defined $cfg->verbose ? $cfg->verbose : 0;

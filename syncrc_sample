@@ -31,16 +31,16 @@ initial_sync = from_destination
 # not a remote spec) - optional
 ssh_proxy = some_user@proxy_host
 
-# Ordered list of filter patterns following the rsync (1) FILTER RULES
+# Ordered list of Rsync filter patterns following the rsync (1) FILTER RULES
 # If nothing is specified then all files and directories are
 # synchronized.
 # Common rule format is:
-# filter <rule_prefix><modifier> <pattern-or-filename>
+# [rsync_]filter <rule_prefix>[<modifier>] <pattern-or-filename>
 
 # The following will exclude any files in directories with name "build" except
 # they are in directory "t/build" and also all ".gitignore" files and all files
 # with extension ".pyc"
-filter - .gitignore
+rsync_filter - .gitignore
 filter - *.pyc
-filter + t/build/*
-filter - build/*
+rsync_filter + t/build/*
+rsync_filter - build/*
