@@ -20,7 +20,7 @@ use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.0.2';
+my $version = '1.1.0';
 my $verbose = 0;
 my $cfg_file = '';
 
@@ -106,6 +106,7 @@ sub check_config_file
     $cfg->define('ssh_proxy=s');
     $cfg->define('initial_sync=s');
     $cfg->define('rsync_filter|filter=s@');
+    $cfg->define('monitor_excude|exclude=s@');
 
     error("Can not read config file <$cfg_file>\n") unless $cfg->file($cfg_file);
     $verbose = defined $cfg->verbose ? $cfg->verbose : 0;
@@ -116,6 +117,7 @@ sub check_config_file
     check_initial_sync($cfg->initial_sync);
     check_proxy($cfg->ssh_proxy);
     check_filter($cfg->filter);
+    check_exclude($cfg->exclude);
 
 }
 
@@ -185,6 +187,20 @@ sub check_filter
 }
 
 ######################################################################
+my $excludes = []; # ref to array with exclude paths for File::ChangeNotify
+
+sub check_exclude
+{
+    my $v = shift;
+    return unless defined $v;
+    # no further checks on exclude patterns (will be done by File::ChangeNotify later)
+    #info("Excludes:\n" . join("\n", @$v) . "\n");
+    map { $_ = qr($_) } @$v; # make read pattern a regexp
+    #info("Excludes:\n" . join("\n", @$v) . "\n");
+    $excludes = $v;
+}
+
+######################################################################
 sub initial_full_sync
 {
     # do initial sync via rsync
@@ -219,7 +235,7 @@ sub sync_on_changes
     my $watcher = File::ChangeNotify->instantiate_watcher
         ( directories => [ $src ],
           #filter      => $src_type eq 'batch' ? qr/\.sync_batch$/ : qr/.*/,
-          #exclude     => $notify_ignore,
+          exclude     => $excludes,
           #follow_symlinks => true,
           sleep_interval => 1, # in seconds
         );

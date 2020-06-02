@@ -44,3 +44,13 @@ rsync_filter - .gitignore
 filter - *.pyc
 rsync_filter + t/build/*
 rsync_filter - build/*
+
+# Optional ist of regular Perl expressions to exclude paths from monitoring
+# If nothing is specified then all files and directories are
+# monitored for changes.
+# [monitor_]exclude = <Perl-regexp-path>
+
+# The following will exclude all files wich are in a subdirectory build
+# and also all files with extension ".pyc"
+exclude /build/
+exclude \.pyc$
