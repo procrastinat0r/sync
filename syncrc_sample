@@ -13,7 +13,7 @@
 # then you should ssh-copy-id your public key to the remote host
 # and use ssh-agent so you don't have to enter a password.
 
-# Enable verbose mode
+# Enable verbose mode (default: disabled)
 verbose = 1
 
 # Source path (local unix path) - mandatory
@@ -27,25 +27,28 @@ destination = my_user@host:2020/my/path/to/remote/destination/directory
 # initial_sync = from_source | from_destination
 initial_sync = from_destination
 
+# Initial sync can remove exclude paths - optional (default: disabled)
+delete_excludes_in_initial_sync = 1
+
 # Use SSH proxy to connect remote destinations (ignored if destination is
 # not a remote spec) - optional
 ssh_proxy = some_user@proxy_host
 
-# Ordered list of Rsync filter patterns following the rsync (1) FILTER RULES
-# If nothing is specified then all files and directories are
-# synchronized.
+# Optional ordered list of Rsync filter patterns following the rsync (1) FILTER
+# RULES If nothing is specified then all files and directories are synchronized.
+#
 # Common rule format is:
 # [rsync_]filter <rule_prefix>[<modifier>] <pattern-or-filename>
-
-# The following will exclude any files in directories with name "build" except
-# they are in directory "t/build" and also all ".gitignore" files and all files
-# with extension ".pyc"
+#
+# The following example will exclude any files in directories with name "build"
+# except they are in directory "t/build" and also all ".gitignore" files and all
+# files with extension ".pyc"
 rsync_filter - .gitignore
 filter - *.pyc
 rsync_filter + t/build/*
 rsync_filter - build/*
 
-# Optional ist of regular Perl expressions to exclude paths from monitoring
+# Optional list of regular Perl expressions to exclude paths from monitoring
 # If nothing is specified then all files and directories are
 # monitored for changes.
 # [monitor_]exclude = <Perl-regexp-path>

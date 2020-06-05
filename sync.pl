@@ -20,7 +20,7 @@ use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.1.0';
+my $version = '1.2.0';
 my $verbose = 0;
 my $cfg_file = '';
 
@@ -92,6 +92,9 @@ sub check_command_line_arguments
     $cfg_file = get_check_path('config file', $cfg->config, 0, 1, 1);
 }
 
+my $initial_sync = '';
+my $delete_excludes_in_initial_sync = '';
+
 sub check_config_file
 {
     my $cfg = AppConfig->new( {
@@ -105,6 +108,7 @@ sub check_config_file
     $cfg->define('destination=s');
     $cfg->define('ssh_proxy=s');
     $cfg->define('initial_sync=s');
+    $cfg->define('delete_excludes_in_initial_sync!');
     $cfg->define('rsync_filter|filter=s@');
     $cfg->define('monitor_excude|exclude=s@');
 
@@ -114,7 +118,16 @@ sub check_config_file
 
     check_source($cfg->source);
     check_destination($cfg->destination);
+
     check_initial_sync($cfg->initial_sync);
+
+    $delete_excludes_in_initial_sync = $cfg->delete_excludes_in_initial_sync if $initial_sync && $cfg->delete_excludes_in_initial_sync;
+    if ($delete_excludes_in_initial_sync eq '1')
+    {
+        $delete_excludes_in_initial_sync = '--delete-excluded';
+        info("Delete excludes on initial sync\n");
+    }
+
     check_proxy($cfg->ssh_proxy);
     check_filter($cfg->filter);
     check_exclude($cfg->exclude);
@@ -143,8 +156,6 @@ sub check_destination
 }
 
 ######################################################################
-my $initial_sync = '';
-
 sub check_initial_sync
 {
     my $v = shift;
@@ -204,7 +215,7 @@ sub check_exclude
 sub initial_full_sync
 {
     # do initial sync via rsync
-    my $cmd = "rsync -v -aPz $proxy --delete --delete-excluded $use_filter ";
+    my $cmd = "rsync -v -aPz $proxy --delete $delete_excludes_in_initial_sync $use_filter ";
     if ($initial_sync eq 'from_source')
     {
         $cmd .= "$src " . dirname $dst;
@@ -240,7 +251,7 @@ sub sync_on_changes
           sleep_interval => 1, # in seconds
         );
 
-    info "waiting for changes in $src ...\n";
+    info "Waiting for changes in $src ...\n";
     while (1) {
         my @events = $watcher->wait_for_events;
         my %src_files = ();
