@@ -48,10 +48,12 @@ filter - *.pyc
 rsync_filter + t/build/*
 rsync_filter - build/*
 
-# Optional list of regular Perl expressions to exclude paths from monitoring
+# Optional list of case-sensitive extended regular expressions to exclude paths
+# from monitoring (see
+# http://pubs.opengroup.org/onlinepubs/009695399/functions/regcomp.html)
 # If nothing is specified then all files and directories are
 # monitored for changes.
-# [monitor_]exclude = <Perl-regexp-path>
+# [monitor_]exclude = <regexp-path>
 
 # The following will exclude all files wich are in a subdirectory build
 # and also all files with extension ".pyc"

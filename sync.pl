@@ -3,7 +3,7 @@
 # tools:
 # - ssh (1)
 # - rsync (1)
-# - https://metacpan.org/pod/File::ChangeNotify
+# - fswatch (https://github.com/emcrisostomo/fswatch)
 # - https://metacpan.org/pod/File::Basename
 # - https://metacpan.org/pod/File::Temp
 # - https://metacpan.org/pod/AppConfig
@@ -15,18 +15,21 @@
 use strict;
 use warnings;
 
-use File::ChangeNotify;
 use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.2.0';
+my $version = '1.3.0';
 my $verbose = 0;
 my $cfg_file = '';
+my $os = $^O; # tested with: cygwin, freebsd
 
 ######################################################################
 sub main
 {
+    # install signal handler so that we delete temporary files
+    $SIG{INT} = sub { exit };
+
     check_command_line_arguments();
 
     unless ($cfg_file)
@@ -199,6 +202,9 @@ sub check_filter
 
 ######################################################################
 my $excludes = []; # ref to array with exclude paths for File::ChangeNotify
+my $exclude_file; # tmp file handle
+my $exclude_fn = ''; # name of the temporary exclude file
+my $use_exclude = ''; # fswatch option for the excudes
 
 sub check_exclude
 {
@@ -206,9 +212,15 @@ sub check_exclude
     return unless defined $v;
     # no further checks on exclude patterns (will be done by File::ChangeNotify later)
     #info("Excludes:\n" . join("\n", @$v) . "\n");
-    map { $_ = qr($_) } @$v; # make read pattern a regexp
+    map { $_ = "-e $_" } @$v; # make it exclude patterns in fswatch file format
     #info("Excludes:\n" . join("\n", @$v) . "\n");
     $excludes = $v;
+    # create temporary exclude file
+    $exclude_file = File::Temp->new(TEMPLATE => 'sync_exclude_XXXXXXXX', DIR => "/tmp", UNLINK => 1);
+    $exclude_fn = $exclude_file->filename;
+    print $exclude_file join("\n", @$excludes) . "\n";
+    info ("Create exclude file <$exclude_fn>\n");
+    $use_exclude = "--filter-from=$exclude_fn";
 }
 
 ######################################################################
@@ -241,51 +253,112 @@ sub initial_full_sync
 ######################################################################
 sub sync_on_changes
 {
-    # now source directory has to exist so check this now
-    error("Can not find local source path <$src>: $!\n") unless -r $src;
-    my $watcher = File::ChangeNotify->instantiate_watcher
-        ( directories => [ $src ],
-          #filter      => $src_type eq 'batch' ? qr/\.sync_batch$/ : qr/.*/,
-          exclude     => $excludes,
-          #follow_symlinks => true,
-          sleep_interval => 1, # in seconds
-        );
+     # now source directory has to exist so check this now
+     error("Can not find local source path <$src>: $!\n") unless -d $src;
 
-    info "Waiting for changes in $src ...\n";
-    while (1) {
-        my @events = $watcher->wait_for_events;
-        my %src_files = ();
-        for my $event (@events) {
-            my $fn = $event->{path};
-            my $type = $event->{type};
-            my $fn_r = $fn; # relative file name
-            $fn_r =~ s/$src\///; # make file name relative to src
-            info "Detected change for <$fn> ($type)\n";
-            if ($type eq 'delete')
-            { # if file was deleted sync it's parent directory
-                $fn_r = dirname $fn_r;
-            }
-            $fn_r .= '/' if -d "$src/$fn_r"; # fix path for directories
-            $src_files{$fn_r} = 1;
-            info "Need to sync <$fn_r>\n";
-        }
-        # now %src_files contains all files to sync relative to $src
-        # write them to a tempory file used for "rsync --files-from" then
-        # see also https://stackoverflow.com/questions/16647476/how-to-rsync-only-a-specific-list-of-files
-        # create from filter file
-        my $from_file = File::Temp->new(TEMPLATE => 'sync_from_XXXXXXXX', DIR => "/tmp", UNLINK => 1);
-        my $from_fn = $filter_file->filename;
-        foreach my $fn_r (sort keys %src_files)
-        {
-            next unless -e "$src/$fn_r";  # don't sync files which do not longer exist
-            print $from_file "$fn_r\n";
-        }
-        # synchronize
-        my $cmd = "rsync -v -aPz $proxy --delete $use_filter --files-from=$from_file $src $dst"; # we don't delete excluded files at destination!
-        info "Run command: $cmd\n";
-        my $rsp = `$cmd`;
-        info "$rsp\n";
-    }
+     # fork fswatch to monitor $src for changes
+     my $pid;
+     error("Can not fork: $!\n") unless defined ($pid = open(READER, "-|"));
+     if ($pid)
+     {   # parent
+         info "Waiting for changes in $src ...\n";
+         $/ = "\0"; # line separator is \0 (see option -0 in fswatch call)
+         my %src_files = ();
+         while (defined(my $fn = <READER>))
+         {
+             chop $fn;
+             my $event = '';
+             if ($fn ne "NoOp")
+             {
+                 $event = <READER>;
+                 #info "fswatch: $fn ($event)\n";
+                 #TODO next if -d $fn && $event =~ /Updated/ && $os eq 'cygwin'; # on cygwin: ignore update events for directories because we also track the files
+                 next if $event =~ /Overflow/; # ignore overflow events
+                 #info "fswatch: $fn ($event)\n";
+             }
+             if ($fn ne "NoOp")
+             {  # file/directory change
+                my $fn_r = $fn; # relative file name
+                $fn_r =~ s/$src\///; # make file name relative to src
+                $fn_r = '.' if $fn_r eq $src;
+                #info "Detected change for <$fn> ($fn_r)\n";
+                unless (-e "$src/$fn_r")
+                {   # if file was deleted sync it's parent directory
+                    $fn_r = dirname $fn_r;
+                }
+                $fn_r .= '/' if -d "$src/$fn_r"; # fix path for directories
+                $src_files{$fn_r} = 1;
+                #info "Accepted change as <$fn_r>\n";
+             }
+             else
+             {   # end of batch detected
+                 info "--------\n";
+                 # now %src_files contains all files to sync relative to $src
+                 # write them to a tempory file used for "rsync --files-from" then
+                 # see also https://stackoverflow.com/questions/16647476/how-to-rsync-only-a-specific-list-of-files
+                 # create from filter file
+                 my $from_file = File::Temp->new(TEMPLATE => 'sync_from_XXXXXXXX', DIR => "/tmp", UNLINK => 1);
+                 my $from_fn = $filter_file->filename;
+                 my $n = 0;
+                 foreach my $fn_r (sort keys %src_files)
+                 {
+                     next unless -e "$src/$fn_r";  # don't sync files which do not longer exist
+                     unless (-d "$src/$fn_r")
+                     {
+                         if (exists $src_files{dirname $fn_r})
+                         {   # there is already a directory entry for this file so file will be synced via directory already
+                             #info "sync $fn_r via directory\n";
+                             next;
+                         }
+                     }
+                     info "Need to sync $src: <$fn_r>\n";
+                     print $from_file "$fn_r\n";
+                     $n++;
+                 }
+                 %src_files = (); # reset hash with changed files
+                 next unless $n;
+                 #info "Need to sync $n files/dirs\n";
+                 # synchronize using the following options (no recursive directories!)
+                 # -v .. verbose
+                 # -l .. copy symlinks as symlinks
+                 # -p .. preserver permissions
+                 # -t .. preserve modification times
+                 # -g .. preserve group
+                 # -o .. preserve owner
+                 # -z .. compress transfer
+                 # -P .. --partial --progress
+                 my $cmd = "rsync -vlptgozP $proxy --delete $use_filter --files-from=$from_file $src $dst"; # we don't delete excluded files at destination!
+                 #info "Run command: $cmd\n";
+                 my $rsp = `$cmd`;
+                 #info "$rsp\n";
+                 info "========\n";
+             }
+         }
+         close(READER);
+     }
+     else
+     {   # child
+         my @options = ( '-0', # line terminator is \0
+                         '--batch-marker', # indicate end of batch
+                         # TODO not working on freebsd: '--directories', # only watch directories to save file descriptors
+                         '--latency=1', # latency between checks
+                         '--format=%p%0%f',
+                         '--event-flag-separator=,',
+                         '-r', # recursive watching
+                         $use_exclude, # use exclude patterns via tmp file
+             );
+         if ($os eq 'cygwin')
+         {   # Cygwin specials
+             push @options, (
+                         '--directories', # only watch directories to save file descriptors
+                         '--allow-overflow',
+                         # improve Cygwin buffer handling; see https://emcrisostomo.github.io/fswatch/doc/1.14.0/fswatch.html/Monitors.html#Buffer-Overflow
+                         '--monitor-property=windows.ReadDirectoryChangesW.buffer.size=8192',
+                 );
+
+         }
+         exec("fswatch", @options, $src) or error("Can not exec fswatch: $!\n");
+     }
 }
 
 main;
