@@ -4,3 +4,4 @@
   - --directories not correctly working on FreeBSD (does not detect touch for plain files)
   - batches not correctly working on FreeBSD (creates one batch for one change if for large latencies)
   - creates 2 events for every change on cygwin
+  - check https://github.com/emcrisostomo/fswatch/issues/151 (Excluded items are recursively scanned nonetheless)

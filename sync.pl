@@ -19,7 +19,7 @@ use File::Basename;
 use File::Temp;
 use AppConfig qw(:expand);
 
-my $version = '1.3.0';
+my $version = '1.3.1';
 my $verbose = 0;
 my $cfg_file = '';
 my $os = $^O; # tested with: cygwin, freebsd
@@ -292,7 +292,7 @@ sub sync_on_changes
              }
              else
              {   # end of batch detected
-                 info "--------\n";
+                 info "-------- job start ---\n";
                  # now %src_files contains all files to sync relative to $src
                  # write them to a tempory file used for "rsync --files-from" then
                  # see also https://stackoverflow.com/questions/16647476/how-to-rsync-only-a-specific-list-of-files
@@ -311,9 +311,9 @@ sub sync_on_changes
                              next;
                          }
                      }
-                     info "Need to sync $src: <$fn_r>\n";
-                     print $from_file "$fn_r\n";
                      $n++;
+                     info "Need to sync $src: <$fn_r> ($n)\n";
+                     print $from_file "$fn_r\n";
                  }
                  %src_files = (); # reset hash with changed files
                  next unless $n;
@@ -328,10 +328,10 @@ sub sync_on_changes
                  # -z .. compress transfer
                  # -P .. --partial --progress
                  my $cmd = "rsync -vlptgozP $proxy --delete $use_filter --files-from=$from_file $src $dst"; # we don't delete excluded files at destination!
-                 #info "Run command: $cmd\n";
+                 info "Run command: $cmd\n";
                  my $rsp = `$cmd`;
-                 #info "$rsp\n";
-                 info "========\n";
+                 info "$rsp\n";
+                 info "======== job finished ===\n";
              }
          }
          close(READER);
